@@ -1,1 +1,1362 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ふんわり勉強タイマー & ミュージックプレイヤー</title>
+    
+    <link rel="apple-touch-icon" href="IMG_1973.PNG">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Noto+Sans+JP:wght@300;400;500&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-color: #fef9f3;
+            --bg-rest-color: #eef7f9; 
+            --main-pink: #fbc4ab;
+            --sub-cream: #ffedd8;
+            --text-color: #6d5952;
+            --font-number: "Bodoni Moda", serif;
+            --font-jp: "Noto Sans JP", sans-serif;
+            
+            /* アバターのカラー */
+            --avatar-skin: #fff5eb;
+            --avatar-blush: #ffb5a7;
+        }
 
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-jp);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        body.rest-mode-bg {
+            background-color: var(--bg-rest-color) !important;
+        }
+
+        /* 画面上部の共通SP表示 */
+        .global-sp-counter {
+            position: absolute;
+            top: 25px;
+            left: 20px;
+            font-size: 1rem;
+            font-weight: 500;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 6px 16px;
+            border-radius: 20px;
+            border: 1px dashed var(--main-pink);
+            box-shadow: 0 4px 10px rgba(243, 224, 211, 0.2);
+            z-index: 110;
+        }
+        .global-sp-counter span {
+            font-family: var(--font-number);
+            font-weight: bold;
+            color: #e29578;
+        }
+
+        /* 音楽コントローラーコンテナ */
+        .music-widget {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 120;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 10px;
+        }
+
+        .bgm-trigger {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background-color: rgba(255, 255, 255, 0.95);
+            border: 2px solid var(--sub-cream);
+            padding: 10px 18px;
+            border-radius: 25px;
+            box-shadow: 0 4px 10px rgba(243, 224, 211, 0.4);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            user-select: none;
+        }
+        .bgm-trigger:hover {
+            border-color: var(--main-pink);
+            transform: translateY(-1px);
+        }
+        .bgm-trigger.playing {
+            background-color: var(--sub-cream);
+            border-color: var(--main-pink);
+        }
+
+        .player-panel {
+            display: none;
+            width: 280px;
+            background: #ffffff;
+            border: 2px solid var(--sub-cream);
+            border-radius: 20px;
+            padding: 15px;
+            box-shadow: 0 10px 25px rgba(109, 89, 82, 0.1);
+            animation: fadeInDown 0.3s ease forwards;
+        }
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .track-info {
+            text-align: center;
+            margin-bottom: 12px;
+        }
+        .track-title {
+            font-size: 0.95rem;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .player-controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 15px;
+        }
+        .control-btn {
+            background: none; border: none; box-shadow: none; padding: 5px;
+            font-size: 0.9rem; font-weight: bold; cursor: pointer; color: var(--text-color);
+            transition: color 0.2s, transform 0.1s; width: auto; height: auto; border-radius: 0;
+        }
+        .control-btn:hover { background: none; color: var(--main-pink); transform: scale(1.1); box-shadow: none; }
+        .control-btn.active { color: #e29578; }
+        .play-pause-btn { font-size: 1.2rem; }
+
+        .playlist {
+            border-top: 1px dashed var(--sub-cream);
+            padding-top: 10px;
+            max-height: 100px;
+            overflow-y: auto;
+        }
+        .playlist-title {
+            font-size: 0.75rem; color: #8a736a; margin-bottom: 5px; font-weight: 500;
+        }
+        .track-item {
+            font-size: 0.85rem; padding: 6px 8px; border-radius: 8px;
+            cursor: pointer; display: flex; justify-content: space-between; transition: background 0.2s;
+        }
+        .track-item:hover { background-color: var(--bg-color); }
+        .track-item.current { background-color: var(--sub-cream); font-weight: 500; }
+
+        /* 画面共通スタイル */
+        .screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            opacity: 0; pointer-events: none;
+            transition: opacity 0.5s ease, transform 0.5s ease;
+            transform: scale(0.95); background-color: transparent; padding: 20px;
+            z-index: 10;
+        }
+        .screen.active { opacity: 1; pointer-events: auto; transform: scale(1); }
+        h1 { font-size: 2.5rem; margin-bottom: 5px; font-weight: 400; letter-spacing: 0.05em; text-align: center; }
+        h2 { font-size: 1.5rem; margin-bottom: 15px; font-weight: 300; text-align: center; }
+        p { font-size: 1rem; margin-bottom: 20px; color: #8a736a; text-align: center; }
+
+        .record-box {
+            background-color: #ffffff; border: 1px dashed var(--main-pink);
+            padding: 12px 25px; border-radius: 15px; margin-bottom: 25px; font-size: 0.95rem; text-align: center;
+            box-shadow: 0 4px 10px rgba(243, 224, 211, 0.2);
+        }
+        .record-box span { font-family: var(--font-number); font-size: 1.4rem; font-weight: bold; color: #e29578; margin: 0 4px; }
+        .btn-container { display: flex; flex-direction: column; gap: 15px; width: 100%; max-width: 300px; }
+        .grid-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; max-width: 400px; margin-bottom: 20px; }
+
+        button {
+            font-family: var(--font-jp); background-color: #ffffff; border: 2px solid var(--sub-cream);
+            color: var(--text-color); padding: 15px 25px; font-size: 1.1rem; border-radius: 30px; cursor: pointer;
+            box-shadow: 0 4px 15px rgba(243, 224, 211, 0.4); transition: all 0.3s ease;
+        }
+        button:hover { background-color: var(--main-pink); color: white; border-color: var(--main-pink); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(251, 196, 171, 0.6); }
+        button.secondary { background-color: transparent; border: 1px solid #d3c4be; box-shadow: none; margin-top: 15px; font-size: 0.95rem; padding: 10px 20px; }
+        button.secondary:hover { background-color: #d3c4be; color: white; }
+
+        .spinner-container {
+            display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 30px;
+            background: #fff; padding: 15px 30px; border-radius: 40px; border: 2px solid var(--sub-cream); box-shadow: 0 4px 15px rgba(243, 224, 211, 0.2);
+        }
+        .spinner-display { font-family: var(--font-number); font-size: 3rem; font-weight: 400; width: 90px; text-align: center; user-select: none; }
+        .spinner-unit { font-size: 1.2rem; color: var(--text-color); margin-right: 10px; }
+        .spinner-nav { display: flex; flex-direction: column; gap: 8px; }
+        .spinner-arrow { background: none; border: none; box-shadow: none; padding: 0; width: 32px; height: 32px; cursor: pointer; color: #bfa397; font-size: 1.2rem; display: flex; align-items: center; justify-content: center; transition: color 0.2s; }
+        .spinner-arrow:hover { background: none; color: var(--main-pink); transform: scale(1.1); box-shadow: none; }
+
+        /* ⏱️ タイマー・カウントダウン関連 */
+        .timer-container-box { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .timer-display { font-family: var(--font-number); font-size: 6rem; font-weight: 400; margin-bottom: 20px; letter-spacing: 2px; }
+        .status-badge { background-color: var(--sub-cream); padding: 6px 16px; border-radius: 20px; font-size: 0.9rem; margin-bottom: 15px; font-weight: 500; }
+        .cycle-count { font-size: 1.1rem; margin-bottom: 20px; }
+        .cycle-count span { font-family: var(--font-number); font-size: 1.5rem; font-weight: bold; }
+
+        /* スタート前カウントダウン表示 */
+        .countdown-overlay {
+            display: none;
+            font-family: var(--font-number);
+            font-size: 7rem;
+            font-weight: bold;
+            color: #e29578;
+            text-shadow: 0 4px 15px rgba(226, 149, 120, 0.2);
+            animation: pulseScale 0.5s ease-in-out infinite alternate;
+            z-index: 50;
+            margin-bottom: 20px;
+        }
+        @keyframes pulseScale {
+            from { transform: scale(0.95); opacity: 0.8; }
+            to { transform: scale(1.05); opacity: 1; }
+        }
+
+        .cute-alarm-bg { background-color: #fff0f3 !important; }
+        .alarm-overlay { display: none; position: absolute; top: 12%; background: #ffb5a7; color: white; padding: 12px 28px; border-radius: 25px; font-weight: bold; font-size: 1.05rem; box-shadow: 0 8px 20px rgba(251, 181, 167, 0.4); letter-spacing: 0.05em; }
+
+        /* 🛒 ショップ専用背景・レイアウト */
+        #screen-shop {
+            background-image: url('cafe.png');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            padding: 10px;
+        }
+
+        #screen-shop h2 {
+            color: #ffffff;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
+
+        .shop-layout {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            max-width: 500px;
+            height: 72vh;
+            background: rgba(255, 255, 255, 0.88);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border-radius: 24px;
+            padding: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+        }
+
+        /* 🥚 インタラクティブCSSアバター */
+        .avatar-area {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 12px 20px;
+            background: rgba(254, 249, 243, 0.85);
+            border-radius: 18px;
+            margin-bottom: 12px;
+            min-height: 110px;
+            border: 1px solid rgba(251, 196, 171, 0.4);
+            cursor: pointer;
+            user-select: none;
+            gap: 15px;
+        }
+        
+        .avatar-body-wrapper {
+            position: relative;
+            width: 64px;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .avatar-body-wrapper.jump {
+            animation: avatarJump 0.4s ease;
+        }
+        @keyframes avatarJump {
+            0%, 100% { transform: translateY(0) scale(1, 1); }
+            30% { transform: translateY(-16px) scale(0.9, 1.1); }
+            70% { transform: translateY(2px) scale(1.05, 0.95); }
+        }
+
+        .avatar-character {
+            position: relative;
+            width: 56px;
+            height: 56px;
+            background: var(--avatar-skin);
+            border-radius: 50% 50% 45% 45%;
+            box-shadow: 0 4px 10px rgba(109, 89, 82, 0.15), inset 0 -3px 6px rgba(109, 89, 82, 0.05);
+            border: 2px solid var(--text-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        /* おめめ（自動まばまばたき） */
+        .avatar-eye {
+            position: absolute;
+            top: 24px;
+            width: 7px;
+            height: 7px;
+            background: var(--text-color);
+            border-radius: 50%;
+            animation: blinkEyes 4s infinite;
+            transition: all 0.1s ease;
+        }
+        .avatar-eye.left { left: 14px; }
+        .avatar-eye.right { right: 14px; }
+        
+        @keyframes blinkEyes {
+            0%, 96%, 100% { transform: scaleY(1); height: 7px; border-radius: 50%; background: var(--text-color); }
+            98% { transform: scaleY(0.1); height: 2px; }
+        }
+
+        .avatar-character.happy .avatar-eye {
+            animation: none;
+            height: 5px;
+            width: 8px;
+            background: transparent;
+            border-radius: 0;
+            border-top: 2.5px solid var(--text-color);
+            top: 25px;
+        }
+        .avatar-character.happy .avatar-eye.left { transform: rotate(-10deg); }
+        .avatar-character.happy .avatar-eye.right { transform: rotate(10deg); }
+
+        /* ほっぺ */
+        .avatar-blush-cheek {
+            position: absolute;
+            top: 30px;
+            width: 10px;
+            height: 6px;
+            background: var(--avatar-blush);
+            border-radius: 50%;
+            opacity: 0.6;
+            filter: blur(0.5px);
+        }
+        .avatar-blush-cheek.left { left: 8px; }
+        .avatar-blush-cheek.right { right: 8px; }
+
+        /* おくち */
+        .avatar-mouth {
+            position: absolute;
+            top: 32px;
+            width: 8px;
+            height: 4px;
+            border-bottom: 2px solid var(--text-color);
+            border-radius: 0 0 4px 4px;
+            transition: all 0.1s ease;
+        }
+        .avatar-character.happy .avatar-mouth {
+            width: 10px;
+            height: 7px;
+            background: #ff758f;
+            border: 2px solid var(--text-color);
+            border-radius: 2px 2px 50% 50%;
+        }
+
+        /* ふきだし */
+        .avatar-right-balloon-box {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .avatar-balloon {
+            font-size: 0.85rem;
+            color: #6d5952;
+            line-height: 1.4;
+            font-weight: 500;
+        }
+
+        .shop-shelves {
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+        
+        .shop-shelves::-webkit-scrollbar { width: 6px; }
+        .shop-shelves::-webkit-scrollbar-track { background: transparent; }
+        .shop-shelves::-webkit-scrollbar-thumb { background: var(--main-pink); border-radius: 10px; }
+
+        .shelf-title {
+            font-size: 0.85rem;
+            font-weight: bold;
+            padding: 6px 12px;
+            background: rgba(255, 237, 216, 0.9);
+            border-radius: 20px;
+            margin: 15px 0 8px 0;
+            border-left: 4px solid var(--main-pink);
+        }
+        .shelf-title:first-child { margin-top: 0; }
+        
+        .items-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .shop-item-card {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(230, 230, 230, 0.7);
+            padding: 10px 14px;
+            border-radius: 14px;
+            transition: all 0.2s ease;
+        }
+        .shop-item-card:hover {
+            border-color: var(--main-pink);
+            background: #ffffff;
+            transform: translateY(-1px);
+        }
+        .item-info-left {
+            display: flex;
+            flex-direction: column;
+        }
+        .item-name {
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        .item-price {
+            font-size: 0.8rem;
+            color: #e29578;
+            font-family: var(--font-number);
+            font-weight: bold;
+            margin-top: 1px;
+        }
+        .buy-btn {
+            padding: 6px 16px;
+            font-size: 0.8rem;
+            border-radius: 20px;
+            box-shadow: none;
+            border: 1px solid var(--main-pink);
+            background: #ffffff;
+        }
+        
+        .secret-command-area {
+            background: rgba(250, 246, 240, 0.9);
+            border: 1px dashed #d3c4be;
+            border-radius: 14px;
+            padding: 12px;
+            margin-top: 5px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .secret-input-row {
+            display: flex;
+            gap: 8px;
+        }
+        .secret-input {
+            flex: 1;
+            padding: 10px 14px;
+            font-size: 0.85rem;
+            border: 1px solid #d3c4be;
+            border-radius: 20px;
+            outline: none;
+            font-family: var(--font-jp);
+            background: #ffffff;
+        }
+        .secret-input:focus {
+            border-color: var(--main-pink);
+        }
+        .secret-btn {
+            padding: 6px 16px;
+            font-size: 0.85rem;
+            border-radius: 20px;
+            box-shadow: none;
+            background: var(--main-pink);
+            color: white;
+            border: none;
+        }
+
+        #screen-shop .secondary {
+            background-color: rgba(255, 255, 255, 0.9);
+            font-weight: 500;
+            border: none;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            margin-top: 10px;
+            padding: 12px 24px;
+        }
+        #screen-shop .secondary:hover {
+            background-color: var(--main-pink);
+        }
+
+        /* 📱 スマホ縦画面・レスポンシブ微調整 */
+        @media (max-width: 480px) {
+            h1 { font-size: 2rem; }
+            h2 { font-size: 1.3rem; }
+            .timer-display { font-size: 4.5rem; }
+            .shop-layout { height: 68vh; }
+            .global-sp-counter { top: 20px; left: 15px; font-size: 0.85rem; padding: 4px 12px; }
+            .bgm-trigger { padding: 8px 14px; font-size: 0.85rem; }
+            .music-widget { top: 15px; right: 15px; }
+            .player-panel { width: 250px; }
+            .countdown-overlay { font-size: 5rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="global-sp-counter">所持: <span id="global-sp-display">0</span> SP</div>
+
+    <audio id="bgm-player"></audio>
+    <audio id="shop-player" src="shop.mp3" loop></audio>
+    <audio id="alarm-player" src="huurin.mp3"></audio>
+    
+    <audio id="se-player"></audio>
+    <audio id="avatar-se-player" src="abata.mp3"></audio>
+    <audio id="click-se-player" src="click.mp3"></audio> <div class="music-widget">
+        <div id="bgm-btn" class="bgm-trigger" onclick="playClickSE(); togglePlayerPanel()">
+            <span id="bgm-icon">BGM</span>
+            <span id="bgm-status-text">Menu</span>
+        </div>
+        
+        <div id="player-panel" class="player-panel">
+            <div class="track-info">
+                <div id="current-track-title" class="track-title">選択されていません</div>
+            </div>
+            
+            <div class="player-controls">
+                <button class="control-btn" onclick="playClickSE(); toggleRepeatMode()" id="btn-repeat">LOOP ALL</button>
+                <button class="control-btn" onclick="playClickSE(); prevTrack()">|◀</button>
+                <button class="control-btn play-pause-btn" onclick="playClickSE(); togglePlayPause()" id="btn-play-pause">PLAY</button>
+                <button class="control-btn" onclick="playClickSE(); nextTrack()">▶|</button>
+            </div>
+            
+            <div class="playlist">
+                <div class="playlist-title">曲一覧</div>
+                <div id="playlist-items"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-main" class="screen active">
+        <h1>Study Room</h1>
+        <p>今日も自分のペースで、心地よく。</p>
+        <div class="record-box">今日の勉強時間: <span id="today-record-time">0分</span></div>
+        <div class="btn-container">
+            <button onclick="playClickSE(); changeScreen('screen-class-select')">授業記録</button>
+            <button onclick="playClickSE(); changeScreen('screen-self-select')">自習</button>
+            <button onclick="playClickSE(); changeScreen('screen-go-out')">おでかけ</button>
+            <button onclick="playClickSE(); openShopScreen()" style="border-color: #bdedf2; background-color: #f4fcfd;">ショップ</button>
+        </div>
+    </div>
+
+    <div id="screen-go-out" class="screen">
+        <h2>どこにおでかけしますか？</h2>
+        <div class="btn-container">
+            <button onclick="playClickSE(); confirmAndNavigate('カフェ', 'https://temp2dio1313-spec.github.io/cafe.jishu/')">カフェ</button>
+            <button onclick="playClickSE(); confirmAndNavigate('自習室', 'https://temp2dio1313-spec.github.io/jishuusitu.jishu/')">自習室</button>
+            <button onclick="playClickSE(); confirmAndNavigate('森のへや', 'https://temp2dio1313-spec.github.io/morinoheya/')">森のへや</button>
+            <button onclick="playClickSE(); confirmAndNavigate('海のへや', 'https://temp2dio1313-spec.github.io/uminoheya/')">海のへや</button>
+            <button onclick="playClickSE(); confirmAndNavigate('個別ブース', 'https://temp2dio1313-spec.github.io/kobetu/')">個別ブース</button>
+        </div>
+        <button class="secondary" onclick="playClickSE(); changeScreen('screen-main')">もどる</button>
+    </div>
+
+    <div id="screen-class-select" class="screen">
+        <h2>授業時間をえらぶ</h2>
+        <div class="grid-buttons">
+            <button onclick="playClickSE(); preStartTimer('class', 60)">1時間</button>
+            <button onclick="playClickSE(); preStartTimer('class', 80)">1時間20分</button>
+            <button onclick="playClickSE(); preStartTimer('class', 90)">1時間30分</button>
+            <button onclick="playClickSE(); preStartTimer('class', 200)">3時間20分</button>
+        </div>
+        <button class="secondary" onclick="playClickSE(); changeScreen('screen-main')">もどる</button>
+    </div>
+
+    <div id="screen-self-select" class="screen">
+        <h2>自習スタイルをえらぶ</h2>
+        <div class="btn-container">
+            <button onclick="playClickSE(); preStartTimer('pomodoro')">ポモドーロ集中</button>
+            <button onclick="playClickSE(); preStartTimer('stopwatch')">ストップウォッチ</button>
+            <button onclick="playClickSE(); changeScreen('screen-custom-timer-set')">タイマー（カスタム）</button>
+        </div>
+        <button class="secondary" onclick="playClickSE(); changeScreen('screen-main')">もどる</button>
+    </div>
+
+    <div id="screen-custom-timer-set" class="screen">
+        <h2>タイマー時間をセット</h2>
+        <div class="spinner-container">
+            <div id="custom-minutes-display" class="spinner-display">10</div>
+            <div class="spinner-unit">分</div>
+            <div class="spinner-nav">
+                <button class="spinner-arrow" onclick="playClickSE(); adjustMinutes(1)">▲</button>
+                <button class="spinner-arrow" onclick="playClickSE(); adjustMinutes(-1)">▼</button>
+            </div>
+        </div>
+        <div class="btn-container"><button onclick="playClickSE(); preStartTimer('custom')">タイマーを開始する</button></div>
+        <button class="secondary" onclick="playClickSE(); changeScreen('screen-self-select')">もどる</button>
+    </div>
+
+    <div id="screen-timer" class="screen">
+        <div id="alarm-banner" class="alarm-overlay">おつかれさま！時間になりました</div>
+        
+        <div id="countdown-display" class="countdown-overlay">3</div>
+
+        <div id="timer-box" class="timer-container-box">
+            <div id="timer-status" class="status-badge">授業記録</div>
+            <div id="pomo-cycle" class="cycle-count" style="display: none;">ただいま <span>1</span> サイクル目</div>
+            <div id="timer-text" class="timer-display">00:00:00</div>
+        </div>
+        
+        <div id="timer-controls-container" class="btn-container" style="flex-direction: row; justify-content: center; z-index: 10;">
+            <button id="btn-pause" onclick="playClickSE(); togglePause()">一時停止</button>
+            <button id="btn-stop" class="secondary" style="margin-top:0;" onclick="playClickSE(); stopTimer()">終了する</button>
+        </div>
+    </div>
+
+    <div id="screen-shop" class="screen">
+        <h2>すたでぃショップ</h2>
+        <div class="shop-layout">
+            <div class="avatar-area" onclick="tapAvatar()">
+                <div id="avatar-wrapper" class="avatar-body-wrapper">
+                    <div id="avatar-character" class="avatar-character">
+                        <div class="avatar-eye left"></div>
+                        <div class="avatar-eye right"></div>
+                        <div class="avatar-blush-cheek left"></div>
+                        <div class="avatar-blush-cheek right"></div>
+                        <div class="avatar-mouth"></div>
+                    </div>
+                </div>
+                <div class="avatar-right-balloon-box">
+                    <div id="avatar-speech" class="avatar-balloon">なにか食べたいな…！</div>
+                </div>
+            </div>
+            
+            <div class="shop-shelves">
+                <div class="shelf-title">のみもの</div>
+                <div id="shop-drinks-list" class="items-grid"></div>
+                
+                <div class="shelf-title">たべもの</div>
+                <div id="shop-foods-list" class="items-grid"></div>
+                
+                <div class="shelf-title">ごほうびをもらう</div>
+                <div class="secret-command-area">
+                    <div class="secret-input-row">
+                        <input type="text" id="secret-code-input" class="secret-input" placeholder="ひみつのコトバを入力...">
+                        <button class="secret-btn" onclick="submitSecretCommand()">決定</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <button class="secondary" onclick="playClickSE(); closeShopScreen()">メインにもどる</button>
+    </div>
+
+    <script>
+        let timerInterval = null;
+        let countdownInterval = null; // カウントダウン用
+        let totalSeconds = 0;
+        let elapsedSecondsInSession = 0; 
+        let isPaused = false;
+        let currentMode = ''; 
+        let pomodoroCycle = 1;
+        let currentCustomMinutes = 10;
+
+        let currentSP = parseFloat(localStorage.getItem('study_sp') || '0');
+        let isInfiniteSP = false; 
+
+        let usedCommands = JSON.parse(localStorage.getItem('study_used_commands') || '{"nenatta":false, "eraiko":false, "ganbatta":false}');
+
+        const shopItems = {
+            drinks: [
+                { name: "げんきドリンク", price: 150 },
+                { name: "おいしいコーヒー", price: 300 },
+                { name: "やさしいミルクティー", price: 350 },
+                { name: "しんさくフラペチーノ", price: 600 },
+                { name: "高級抹茶茶碗", price: 1000 }
+            ],
+            foods: [
+                { name: "ふがし", price: 100 },
+                { name: "クッキー", price: 300 },
+                { name: "カヌレ", price: 250 },
+                { name: "マドレーヌ", price: 350 },
+                { name: "ドーナツ", price: 400 },
+                { name: "生チョコ", price: 600 },
+                { name: "ごうかなケーキ", price: 1000 }
+            ]
+        };
+
+        const tracks = [
+            { id: 0, title: "三葉のテーマ", file: "music1.mp3" },
+            { id: 1, title: "夢灯籠", file: "music2.mp3" }
+        ];
+        let currentTrackIndex = 0;
+        let isPlaying = false;
+        let repeatMode = 'all'; 
+        let nextTrackTimeout = null;
+
+        // アバター制御用のタイムアウト管理用変数を宣言
+        let avatarTimeout = null;
+        let avatarTapTimeout = null;
+
+        const bgmPlayer = document.getElementById('bgm-player');
+        const shopPlayer = document.getElementById('shop-player');
+        const alarmPlayer = document.getElementById('alarm-player');
+        const sePlayer = document.getElementById('se-player');
+        const avatarSePlayer = document.getElementById('avatar-se-player');
+        const clickSePlayer = document.getElementById('click-se-player');
+
+        let wasPlayingBeforeShop = false; 
+
+        window.onload = function() {
+            displayTodayRecord();
+            updateSPDisplay();
+            renderPlaylist();
+            buildShopMenu();
+            loadTrack(currentTrackIndex);
+            
+            bgmPlayer.onended = function() {
+                if (repeatMode === 'one') {
+                    bgmPlayer.play();
+                } else {
+                    clearTimeout(nextTrackTimeout);
+                    document.getElementById('current-track-title').innerText = "間隔をあけています (3秒)...";
+                    nextTrackTimeout = setTimeout(() => {
+                        nextTrack();
+                    }, 3000);
+                }
+            };
+
+            sePlayer.onended = function() {
+                fadeAudioVolumeOnly(shopPlayer, 0.05, 1.0, 300);
+            };
+        };
+
+        // ショップ画面以外用の共通クリックSE再生関数
+        function playClickSE() {
+            clickSePlayer.currentTime = 0;
+            clickSePlayer.volume = 0.5;
+            clickSePlayer.play().catch(()=>{});
+        }
+
+        // おでかけ用 確認ログ表示＆遷移関数
+        function confirmAndNavigate(placeName, url) {
+            const result = confirm(`${placeName}に移動しますか？`);
+            if (result) {
+                window.location.href = url;
+            }
+        }
+
+        function updateSPDisplay() {
+            const displayEl = document.getElementById('global-sp-display');
+            if (isInfiniteSP) {
+                displayEl.innerText = "無制限";
+            } else {
+                displayEl.innerText = Math.floor(currentSP);
+                localStorage.setItem('study_sp', currentSP.toString());
+            }
+        }
+
+        function buildShopMenu() {
+            const drinksContainer = document.getElementById('shop-drinks-list');
+            drinksContainer.innerHTML = '';
+            shopItems.drinks.forEach(item => {
+                drinksContainer.appendChild(createItemCard(item));
+            });
+
+            const foodsContainer = document.getElementById('shop-foods-list');
+            foodsContainer.innerHTML = '';
+            shopItems.foods.forEach(item => {
+                foodsContainer.appendChild(createItemCard(item));
+            });
+        }
+
+        function createItemCard(item) {
+            const card = document.createElement('div');
+            card.className = 'shop-item-card';
+            card.innerHTML = `
+                <div class="item-info-left">
+                    <span class="item-name">${item.name}</span>
+                    <span class="item-price">${item.price} SP</span>
+                </div>
+                <button class="buy-btn" onclick="buyItem('${item.name}', ${item.price})">かう</button>
+            `;
+            return card;
+        }
+
+        function fadeAudio(audioElement, startVol, endVol, duration, callback) {
+            const steps = 20;
+            const stepTime = duration / steps;
+            const volDelta = (endVol - startVol) / steps;
+            let currentStep = 0;
+
+            if (startVol === 0 && endVol > 0) {
+                audioElement.volume = 0;
+                audioElement.play().catch(()=>{});
+            }
+
+            const interval = setInterval(() => {
+                currentStep++;
+                let nextVol = startVol + (volDelta * currentStep);
+                if (nextVol < 0) nextVol = 0;
+                if (nextVol > 1) nextVol = 1;
+                audioElement.volume = nextVol;
+
+                if (currentStep >= steps) {
+                    clearInterval(interval);
+                    audioElement.volume = endVol;
+                    if (endVol === 0) {
+                        audioElement.pause();
+                    }
+                    if (callback) callback();
+                }
+            }, stepTime);
+        }
+
+        function fadeAudioVolumeOnly(audioElement, startVol, endVol, duration) {
+            const steps = 15;
+            const stepTime = duration / steps;
+            const volDelta = (endVol - startVol) / steps;
+            let currentStep = 0;
+
+            const interval = setInterval(() => {
+                currentStep++;
+                let nextVol = startVol + (volDelta * currentStep);
+                if (nextVol < 0) nextVol = 0;
+                if (nextVol > 1) nextVol = 1;
+                audioElement.volume = nextVol;
+
+                if (currentStep >= steps) {
+                    clearInterval(interval);
+                    audioElement.volume = endVol;
+                }
+            }, stepTime);
+        }
+
+        function openShopScreen() {
+            changeScreen('screen-shop');
+            resetAvatarState();
+            document.getElementById('avatar-speech').innerText = "なにか食べたいな…！";
+            document.getElementById('secret-code-input').value = '';
+
+            wasPlayingBeforeShop = isPlaying;
+
+            if (isPlaying) {
+                fadeAudio(bgmPlayer, 1.0, 0, 400, () => {
+                    fadeAudio(shopPlayer, 0, 1.0, 400);
+                });
+            } else {
+                fadeAudio(shopPlayer, 0, 1.0, 400);
+            }
+        }
+
+        function closeShopScreen() {
+            changeScreen('screen-main');
+
+            fadeAudio(shopPlayer, 1.0, 0, 400, () => {
+                if (wasPlayingBeforeShop) {
+                    fadeAudio(bgmPlayer, 0, 1.0, 400);
+                }
+            });
+        }
+
+        function resetAvatarState() {
+            const charEl = document.getElementById('avatar-character');
+            const wrapperEl = document.getElementById('avatar-wrapper');
+            charEl.classList.remove('happy');
+            wrapperEl.classList.remove('jump');
+        }
+
+        function tapAvatar() {
+            avatarSePlayer.currentTime = 0;
+            avatarSePlayer.play().catch(()=>{});
+
+            const charEl = document.getElementById('avatar-character');
+            const wrapperEl = document.getElementById('avatar-wrapper');
+            const speechEl = document.getElementById('avatar-speech');
+            
+            clearTimeout(avatarTimeout);
+            clearTimeout(avatarTapTimeout);
+            resetAvatarState();
+
+            setTimeout(() => { wrapperEl.classList.add('jump'); }, 10);
+            
+            const lines = [
+                "なになにー？いっしょにがんばろうね！",
+                "つつくと、ちょっとくすぐったいぞっ！",
+                "カフェの雰囲気、すごく落ち着くねぇ",
+                "応援してるよ！ひと息ついたらまた始めよう"
+            ];
+            const randomLine = lines[Math.floor(Math.random() * lines.length)];
+            speechEl.innerText = randomLine;
+
+            avatarTapTimeout = setTimeout(() => {
+                resetAvatarState();
+                speechEl.innerText = "次は何をくれるの？";
+            }, 3000);
+        }
+
+        function buyItem(name, price) {
+            if (!isInfiniteSP && currentSP < price) {
+                alert("SP（すたでぃポイント）が足りません。勉強して貯めましょう！");
+                return;
+            }
+
+            if (!isInfiniteSP) {
+                currentSP -= price;
+                updateSPDisplay();
+            }
+
+            const charEl = document.getElementById('avatar-character');
+            const wrapperEl = document.getElementById('avatar-wrapper');
+            const speechEl = document.getElementById('avatar-speech');
+            
+            clearTimeout(avatarTimeout);
+            clearTimeout(avatarTapTimeout);
+            resetAvatarState();
+
+            let hasSE = false;
+
+            if (price >= 1000) {
+                hasSE = true;
+                shopPlayer.volume = 0.05; 
+                sePlayer.src = "oishi01.mp3";
+                sePlayer.play().catch(()=>{ shopPlayer.volume = 1.0; });
+
+                charEl.classList.add('happy');
+                setTimeout(() => { wrapperEl.classList.add('jump'); }, 10);
+                speechEl.innerText = `すごすぎる！高級な ${name} だー！！幸せ！`;
+            } else if (price >= 600) {
+                hasSE = true;
+                shopPlayer.volume = 0.05; 
+                sePlayer.src = "oishi02.mp3";
+                sePlayer.play().catch(()=>{ shopPlayer.volume = 1.0; });
+
+                charEl.classList.add('happy');
+                setTimeout(() => { wrapperEl.classList.add('jump'); }, 10);
+                speechEl.innerText = `わあー！贅沢な ${name} ！！すっごく嬉しい！`;
+            } else if (price >= 300) {
+                hasSE = true;
+                shopPlayer.volume = 0.05; 
+                sePlayer.src = "oishi03.mp3";
+                sePlayer.play().catch(()=>{ shopPlayer.volume = 1.0; });
+
+                charEl.classList.add('happy');
+                speechEl.innerText = `おいしい ${name} ありがとう！やる気が出るよ！`;
+            } else {
+                charEl.classList.add('happy');
+                speechEl.innerText = `${name} もぐもぐ！美味しいよ、ありがとう！`;
+            }
+
+            avatarTimeout = setTimeout(() => {
+                resetAvatarState();
+                speechEl.innerText = "次は何をくれるの？";
+                if(!hasSE) shopPlayer.volume = 1.0;
+            }, 4000);
+        }
+
+        function submitSecretCommand() {
+            const inputEl = document.getElementById('secret-code-input');
+            const code = inputEl.value.trim();
+            
+            if (!code) return;
+
+            const charEl = document.getElementById('avatar-character');
+            const speechEl = document.getElementById('avatar-speech');
+            clearTimeout(avatarTimeout);
+            clearTimeout(avatarTapTimeout);
+            resetAvatarState();
+
+            if (code === "ねなかった") {
+                if (usedCommands.nenatta) {
+                    alert("このコマンドはすでに1回使われています。");
+                } else {
+                    usedCommands.nenatta = true;
+                    localStorage.setItem('study_used_commands', JSON.stringify(usedCommands));
+                    if (!isInfiniteSP) currentSP += 1000;
+                    updateSPDisplay();
+                    charEl.classList.add('happy');
+                    speechEl.innerText = "誘惑に負けずに起きてて本当にえらい！1000SPをあげるね！";
+                }
+            } 
+            else if (code === "えらいこ") {
+                if (usedCommands.eraiko) {
+                    alert("このコマンドはすでに1回使われています。");
+                } else {
+                    usedCommands.eraiko = true;
+                    localStorage.setItem('study_used_commands', JSON.stringify(usedCommands));
+                    if (!isInfiniteSP) currentSP += 1000;
+                    updateSPDisplay();
+                    charEl.classList.add('happy');
+                    speechEl.innerText = "あなたは最高のえらいこ！いつも見てるよ。1000SPをどうぞ！";
+                }
+            } 
+            else if (code === "がんばった") {
+                if (usedCommands.ganbatta) {
+                    alert("このコマンドはすでに1回使われています。");
+                } else {
+                    usedCommands.ganbatta = true;
+                    localStorage.setItem('study_used_commands', JSON.stringify(usedCommands));
+                    if (!isInfiniteSP) currentSP += 1000;
+                    updateSPDisplay();
+                    charEl.classList.add('happy');
+                    speechEl.innerText = "本当にお疲れ様！努力の成果だね。1000SPを受け取って！";
+                }
+            }
+            else if (code === "動作確認") {
+                isInfiniteSP = true;
+                updateSPDisplay();
+                speechEl.innerText = "管理者モード：SPを【無制限】に切り替えました。";
+            } 
+            else if (code === "動作確認終了") {
+                isInfiniteSP = false;
+                currentSP = 0;
+                updateSPDisplay();
+                speechEl.innerText = "管理者モード終了：SPを【0】にリセットしました。";
+            } 
+            else {
+                alert("コトバが違うみたい。もう一度確かめてみてね。");
+                return;
+            }
+
+            inputEl.value = ''; 
+            
+            avatarTimeout = setTimeout(() => {
+                resetAvatarState();
+                speechEl.innerText = "なにか食べたいな…！";
+            }, 6000);
+        }
+
+        // 🎵 ミュージックプレイヤーコントロール
+        function togglePlayerPanel() {
+            const panel = document.getElementById('player-panel');
+            panel.style.display = (panel.style.display === 'block') ? 'none' : 'block';
+        }
+
+        function renderPlaylist() {
+            const listContainer = document.getElementById('playlist-items');
+            listContainer.innerHTML = '';
+            tracks.forEach((track, index) => {
+                const item = document.createElement('div');
+                item.className = `track-item ${index === currentTrackIndex ? 'current' : ''}`;
+                item.innerText = `${track.title}`;
+                item.onclick = () => { playClickSE(); selectTrack(index); };
+                listContainer.appendChild(item);
+            });
+        }
+
+        function loadTrack(index) {
+            currentTrackIndex = index;
+            bgmPlayer.src = tracks[index].file;
+            bgmPlayer.volume = 1.0; 
+            document.getElementById('current-track-title').innerText = tracks[index].title;
+            renderPlaylist();
+        }
+
+        function selectTrack(index) {
+            clearTimeout(nextTrackTimeout);
+            loadTrack(index);
+            if (isPlaying) {
+                bgmPlayer.play().catch(()=>{});
+            } else {
+                togglePlayPause();
+            }
+        }
+
+        function togglePlayPause() {
+            clearTimeout(nextTrackTimeout);
+            const btn = document.getElementById('btn-play-pause');
+            const triggerBtn = document.getElementById('bgm-btn');
+            const icon = document.getElementById('bgm-icon');
+
+            if (!isPlaying) {
+                bgmPlayer.volume = 1.0;
+                bgmPlayer.play().then(() => {
+                    isPlaying = true;
+                    btn.innerText = 'PAUSE';
+                    triggerBtn.classList.add('playing');
+                    icon.innerText = 'BGM ON';
+                }).catch(err => {
+                    alert('音楽ファイルが読み込めないか見つかりません。');
+                });
+            } else {
+                bgmPlayer.pause();
+                isPlaying = false;
+                btn.innerText = 'PLAY';
+                triggerBtn.classList.remove('playing');
+                icon.innerText = 'BGM';
+            }
+        }
+
+        function nextTrack() {
+            clearTimeout(nextTrackTimeout);
+            let nextIndex = currentTrackIndex + 1;
+            if (nextIndex >= tracks.length) nextIndex = 0;
+            loadTrack(nextIndex);
+            if (isPlaying) bgmPlayer.play().catch(()=>{});
+        }
+
+        function prevTrack() {
+            clearTimeout(nextTrackTimeout);
+            let prevIndex = currentTrackIndex - 1;
+            if (prevIndex < 0) prevIndex = tracks.length - 1;
+            loadTrack(prevIndex);
+            if (isPlaying) bgmPlayer.play().catch(()=>{});
+        }
+
+        function toggleRepeatMode() {
+            const btn = document.getElementById('btn-repeat');
+            if (repeatMode === 'all') {
+                repeatMode = 'one';
+                btn.innerText = 'LOOP ONE';
+                btn.classList.add('active');
+            } else {
+                repeatMode = 'all';
+                btn.innerText = 'LOOP ALL';
+                btn.classList.remove('active');
+            }
+        }
+
+        function playChimeSound() {
+            alarmPlayer.currentTime = 0;
+            alarmPlayer.volume = 0.8; 
+            alarmPlayer.play().catch(e => console.log("再生制限回避"));
+        }
+
+        function getTodayString() {
+            const d = new Date();
+            return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        }
+
+        function displayTodayRecord() {
+            const todayStr = getTodayString();
+            if (localStorage.getItem('study_date') !== todayStr) {
+                localStorage.setItem('study_date', todayStr);
+                localStorage.setItem('study_today_minutes', '0');
+            }
+            const todayMinutes = parseFloat(localStorage.getItem('study_today_minutes') || '0');
+            document.getElementById('today-record-time').innerText = todayMinutes.toFixed(1) + '分';
+        }
+
+        function saveStudyTimeAndSP(seconds) {
+            if (seconds <= 0) return;
+            const minutesEarned = seconds / 60;
+            
+            const currentTotalMinutes = parseFloat(localStorage.getItem('study_today_minutes') || '0');
+            localStorage.setItem('study_today_minutes', currentTotalMinutes + minutesEarned);
+            displayTodayRecord();
+
+            if (!isInfiniteSP) {
+                const pointsEarned = minutesEarned * 10;
+                currentSP += pointsEarned;
+            }
+            updateSPDisplay();
+        }
+
+        function adjustMinutes(amount) {
+            currentCustomMinutes += amount;
+            if (currentCustomMinutes < 1) currentCustomMinutes = 1;
+            document.getElementById('custom-minutes-display').innerText = currentCustomMinutes;
+        }
+
+        function changeScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+            document.body.classList.remove('cute-alarm-bg');
+            document.getElementById('timer-box').classList.remove('cute-poyo');
+            document.getElementById('alarm-banner').style.display = 'none';
+            
+            if (screenId === 'screen-main' || screenId === 'screen-self-select') {
+                document.body.classList.remove('rest-mode-bg');
+            }
+        }
+
+        function formatTime(seconds) {
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            const s = seconds % 60;
+            return `${h > 0 ? String(h).padStart(2,'0')+':' : ''}${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+        }
+
+        function updateDisplay() {
+            document.getElementById('timer-text').innerText = formatTime(totalSeconds);
+        }
+
+        // ⏱️ カウントダウンを挟むための準備関数
+        function preStartTimer(mode, arg = null) {
+            currentMode = mode;
+            isPaused = false;
+            elapsedSecondsInSession = 0;
+
+            // 各種タイマーの初期化設定
+            if (mode === 'class') {
+                totalSeconds = arg * 60;
+                document.getElementById('timer-status').innerText = '授業記録';
+                document.getElementById('pomo-cycle').style.display = 'none';
+            } else if (mode === 'pomodoro') {
+                currentMode = 'pomodoro-work';
+                totalSeconds = 25 * 60;
+                pomodoroCycle = 1;
+                document.body.classList.remove('rest-mode-bg'); 
+                document.getElementById('timer-status').innerText = 'ポモドーロ：集中タイム';
+                document.getElementById('pomo-cycle').style.display = 'block';
+                document.getElementById('pomo-cycle').querySelector('span').innerText = pomodoroCycle;
+            } else if (mode === 'stopwatch') {
+                totalSeconds = 0;
+                document.getElementById('timer-status').innerText = 'ストップウォッチ（自習）';
+                document.getElementById('pomo-cycle').style.display = 'none';
+            } else if (mode === 'custom') {
+                totalSeconds = currentCustomMinutes * 60;
+                document.getElementById('timer-status').innerText = 'カスタムタイマー';
+                document.getElementById('pomo-cycle').style.display = 'none';
+            }
+
+            // タイマー画面に切り替え、数字表記をセット
+            updateDisplay();
+            changeScreen('screen-timer');
+
+            // カウントダウン中のUI制御
+            const countdownEl = document.getElementById('countdown-display');
+            const timerBox = document.getElementById('timer-box');
+            const controlsBox = document.getElementById('timer-controls-container');
+
+            timerBox.style.display = 'none';       // タイマー本体を隠す
+            controlsBox.style.display = 'none';    // 操作パネルを一時的に隠す
+            countdownEl.style.display = 'block';   // カウントダウン表示を出す
+
+            let count = 3;
+            countdownEl.innerText = count;
+
+            if (countdownInterval) clearInterval(countdownInterval);
+            if (timerInterval) clearInterval(timerInterval);
+
+            countdownInterval = setInterval(() => {
+                count--;
+                if (count > 0) {
+                    countdownEl.innerText = count;
+                } else if (count === 0) {
+                    countdownEl.innerText = "START!";
+                } else {
+                    // カウントダウン終了時の処理
+                    clearInterval(countdownInterval);
+                    countdownEl.style.display = 'none';
+                    timerBox.style.display = 'flex';
+                    controlsBox.style.display = 'flex';
+
+                    // 実際の計測スタート
+                    startActualTimer();
+                }
+            }, 1000);
+        }
+
+        // 実際のタイマー刻み処理
+        function startActualTimer() {
+            if (currentMode.startsWith('pomodoro')) {
+                runPomodoroTimer();
+            } else {
+                timerInterval = setInterval(() => {
+                    if (!isPaused) {
+                        if (currentMode === 'stopwatch') {
+                            totalSeconds++;
+                            elapsedSecondsInSession++;
+                            updateDisplay();
+                        } else {
+                            if (totalSeconds > 0) {
+                                totalSeconds--;
+                                elapsedSecondsInSession++;
+                                updateDisplay();
+                            } else {
+                                clearInterval(timerInterval);
+                                triggerAlarmEffect();
+                            }
+                        }
+                    }
+                }, 1000);
+            }
+        }
+
+        function runPomodoroTimer() {
+            if(timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                if (!isPaused) {
+                    if (totalSeconds > 0) {
+                        totalSeconds--;
+                        if (currentMode === 'pomodoro-work') elapsedSecondsInSession++;
+                        updateDisplay();
+                    } else {
+                        clearInterval(timerInterval);
+                        
+                        if (currentMode === 'pomodoro-work') {
+                            playChimeSound(); 
+                            saveStudyTimeAndSP(elapsedSecondsInSession);
+                            elapsedSecondsInSession = 0;
+
+                            document.body.classList.add('rest-mode-bg'); 
+                            document.getElementById('alarm-banner').innerText = 'おつかれさま！5分休憩してね';
+                            document.body.classList.add('cute-alarm-bg');
+                            document.getElementById('timer-box').classList.add('cute-poyo');
+                            document.getElementById('alarm-banner').style.display = 'block';
+                            
+                            setTimeout(() => {
+                                document.body.classList.remove('cute-alarm-bg');
+                                document.getElementById('timer-box').classList.remove('cute-poyo');
+                                document.getElementById('alarm-banner').style.display = 'none';
+                                
+                                currentMode = 'pomodoro-rest';
+                                totalSeconds = 5 * 60; 
+                                document.getElementById('timer-status').innerText = 'ポモドーロ：休憩タイム';
+                                updateDisplay(); runPomodoroTimer();
+                            }, 4000);
+                        } else {
+                            playChimeSound(); 
+                            document.body.classList.remove('rest-mode-bg'); 
+                            
+                            pomodoroCycle++;
+                            currentMode = 'pomodoro-work';
+                            totalSeconds = 25 * 60;
+                            document.getElementById('timer-status').innerText = 'ポモドーロ：集中タイム';
+                            document.getElementById('pomo-cycle').querySelector('span').innerText = pomodoroCycle;
+                            updateDisplay(); runPomodoroTimer();
+                        }
+                    }
+                }
+            }, 1000);
+        }
+
+        function triggerAlarmEffect() {
+            playChimeSound(); 
+            document.getElementById('alarm-banner').innerText = 'おつかれさま！時間になりました';
+            document.body.classList.add('cute-alarm-bg');
+            document.getElementById('timer-box').classList.add('cute-poyo');
+            document.getElementById('alarm-banner').style.display = 'block';
+            setTimeout(() => { stopTimer(); }, 4000);
+        }
+
+        function togglePause() {
+            isPaused = !isPaused;
+            document.getElementById('btn-pause').innerText = isPaused ? '再開する' : '一時停止';
+        }
+
+        function stopTimer() {
+            if (countdownInterval) clearInterval(countdownInterval);
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = null;
+            
+            saveStudyTimeAndSP(elapsedSecondsInSession);
+            elapsedSecondsInSession = 0;
+            document.body.classList.remove('rest-mode-bg'); 
+            changeScreen('screen-main');
+        }
+    </script>
+</body>
+</html>
