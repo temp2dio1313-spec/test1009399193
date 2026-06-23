@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ふんわり勉強タイマー & ミュージックプレイヤー</title>
     
+    <!-- Safari ホーム画面追加時のアイコン設定 -->
     <link rel="apple-touch-icon" href="IMG_1973.PNG">
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -129,18 +130,19 @@
             text-overflow: ellipsis;
         }
 
-        /* 🎚️ 音量コントロールバーのスタイル */
+        /* 音量コントロールバーのスタイル */
         .volume-container {
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 8px;
             margin-bottom: 15px;
-            padding: 0 10px;
+            padding: 0 5px;
         }
-        .volume-icon {
-            font-size: 0.8rem;
+        .volume-label {
+            font-size: 0.7rem;
             color: #a38f87;
+            font-weight: 500;
             user-select: none;
         }
         .volume-slider {
@@ -182,50 +184,32 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            gap: 18px;
+            gap: 15px;
             margin-bottom: 15px;
             position: relative;
         }
         .control-btn {
             background: none; border: none; box-shadow: none; padding: 5px;
-            font-size: 0.9rem; font-weight: bold; cursor: pointer; color: var(--text-color);
+            font-size: 0.85rem; font-weight: bold; cursor: pointer; color: var(--text-color);
             transition: color 0.2s, transform 0.1s; width: auto; height: auto; border-radius: 0;
         }
-        .control-btn:hover { background: none; color: var(--main-pink); transform: scale(1.1); box-shadow: none; }
-        .play-pause-btn { font-size: 1.2rem; }
+        .control-btn:hover { background: none; color: var(--main-pink); transform: scale(1.05); box-shadow: none; }
+        .play-pause-btn { font-size: 1.1rem; }
 
-        /* 🔁 小さくしたリピートアイコンボタン */
+        /* テキストベースのコンパクトなリピートボタン */
         .repeat-btn {
-            font-size: 1.1rem;
+            font-size: 0.75rem;
             color: #bfa397;
-            position: relative;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 22px;
-            height: 22px;
+            border: 1px solid #e6dfda;
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-weight: 500;
+            letter-spacing: 0.05em;
         }
         .repeat-btn.active {
             color: #e29578;
-        }
-        .repeat-badge {
-            position: absolute;
-            top: -2px;
-            right: -4px;
-            font-size: 0.55rem;
-            font-weight: bold;
-            background: #e29578;
-            color: white;
-            border-radius: 50%;
-            width: 10px;
-            height: 10px;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            font-family: var(--font-number);
-        }
-        .repeat-btn.one .repeat-badge {
-            display: flex;
+            border-color: #e29578;
+            background-color: #fff9f6;
         }
 
         .playlist {
@@ -244,7 +228,7 @@
         .track-item:hover { background-color: var(--bg-color); }
         .track-item.current { background-color: var(--sub-cream); font-weight: 500; }
 
-        /* 🎵 曲名アナウンス用トースト */
+        /* 曲名アナウンス用トースト */
         .music-toast {
             position: absolute;
             top: 90px;
@@ -317,7 +301,7 @@
         .spinner-arrow { background: none; border: none; box-shadow: none; padding: 0; width: 32px; height: 32px; cursor: pointer; color: #bfa397; font-size: 1.2rem; display: flex; align-items: center; justify-content: center; transition: color 0.2s; }
         .spinner-arrow:hover { background: none; color: var(--main-pink); transform: scale(1.1); box-shadow: none; }
 
-        /* ⏱️ タイマー・カウントダウン関連 */
+        /* タイマー・カウントダウン関連 */
         .timer-container-box { display: flex; flex-direction: column; align-items: center; justify-content: center; }
         .timer-display { font-family: var(--font-number); font-size: 6rem; font-weight: 400; margin-bottom: 20px; letter-spacing: 2px; }
         .status-badge { background-color: var(--sub-cream); padding: 6px 16px; border-radius: 20px; font-size: 0.9rem; margin-bottom: 15px; font-weight: 500; }
@@ -344,7 +328,7 @@
         .cute-alarm-bg { background-color: #fff0f3 !important; }
         .alarm-overlay { display: none; position: absolute; top: 12%; background: #ffb5a7; color: white; padding: 12px 28px; border-radius: 25px; font-weight: bold; font-size: 1.05rem; box-shadow: 0 8px 20px rgba(251, 181, 167, 0.4); letter-spacing: 0.05em; }
 
-        /* 🛒 ショップ専用背景・レイアウト */
+        /* ショップ専用背景・レイアウト */
         #screen-shop {
             background-image: url('cafe.png');
             background-size: cover;
@@ -626,46 +610,53 @@
 </head>
 <body>
 
+    <!-- 共通所持SP表示カウント -->
     <div class="global-sp-counter">所持: <span id="global-sp-display">0</span> SP</div>
 
+    <!-- 曲名通知用のポップアップトースト -->
     <div id="music-toast" class="music-toast">
         <div class="music-toast-sub">NOW PLAYING</div>
         <div id="music-toast-title">曲名</div>
     </div>
 
+    <!-- オーディオ要素 -->
     <audio id="bgm-player"></audio>
     <audio id="shop-player" src="shop.mp3" loop></audio>
     <audio id="alarm-player" src="huurin.mp3"></audio>
     
+    <!-- 効果音用プレイヤー -->
     <audio id="se-player"></audio>
     <audio id="avatar-se-player" src="abata.mp3"></audio>
     <audio id="click-se-player" src="click.mp3"></audio>
 
+    <!-- ミュージックウィジェット -->
     <div class="music-widget">
         <div id="bgm-btn" class="bgm-trigger" onclick="playClickSE(); togglePlayerPanel()">
             <span id="bgm-icon">BGM</span>
             <span id="bgm-status-text">Menu</span>
         </div>
         
+        <!-- プレイヤー本体パネル -->
         <div id="player-panel" class="player-panel">
             <div class="track-info">
                 <div id="current-track-title" class="track-title">選択されていません</div>
             </div>
             
+            <!-- 音量コントロールバー -->
             <div class="volume-container">
-                <span class="volume-icon">🔈</span>
+                <span class="volume-label">[ VOL - ]</span>
                 <input type="range" id="volume-slider" class="volume-slider" min="0" max="1" step="0.05" value="1" oninput="adjustBGMVolume(this.value)">
-                <span class="volume-icon">🔊</span>
+                <span class="volume-label">[ VOL + ]</span>
             </div>
             
             <div class="player-controls">
-                <button class="control-btn repeat-btn" onclick="playClickSE(); toggleRepeatMode()" id="btn-repeat" title="リピート切替">
-                    🔂
-                    <span class="repeat-badge">1</span>
+                <!-- コンパクトなリピートテキストボタン -->
+                <button class="control-btn repeat-btn active" onclick="playClickSE(); toggleRepeatMode()" id="btn-repeat" title="リピート切替">
+                    [LOOP ALL]
                 </button>
-                <button class="control-btn" onclick="playClickSE(); prevTrack()">|◀</button>
+                <button class="control-btn" onclick="playClickSE(); prevTrack()">|&lt;</button>
                 <button class="control-btn play-pause-btn" onclick="playClickSE(); togglePlayPause()" id="btn-play-pause">PLAY</button>
-                <button class="control-btn" onclick="playClickSE(); nextTrack()">▶|</button>
+                <button class="control-btn" onclick="playClickSE(); nextTrack()">&gt;|</button>
             </div>
             
             <div class="playlist">
@@ -675,6 +666,7 @@
         </div>
     </div>
 
+    <!-- 1. メインメニュー画面 -->
     <div id="screen-main" class="screen active">
         <h1>Study Room</h1>
         <p>今日も自分のペースで、心地よく。</p>
@@ -687,6 +679,7 @@
         </div>
     </div>
 
+    <!-- 1.5 おでかけ先選択画面 -->
     <div id="screen-go-out" class="screen">
         <h2>どこにおでかけしますか？</h2>
         <div class="btn-container">
@@ -699,6 +692,7 @@
         <button class="secondary" onclick="playClickSE(); changeScreen('screen-main')">もどる</button>
     </div>
 
+    <!-- 2. 授業記録：時間選択画面 -->
     <div id="screen-class-select" class="screen">
         <h2>授業時間をえらぶ</h2>
         <div class="grid-buttons">
@@ -710,6 +704,7 @@
         <button class="secondary" onclick="playClickSE(); changeScreen('screen-main')">もどる</button>
     </div>
 
+    <!-- 3. 自習：モード選択画面 -->
     <div id="screen-self-select" class="screen">
         <h2>自習スタイルをえらぶ</h2>
         <div class="btn-container">
@@ -720,6 +715,7 @@
         <button class="secondary" onclick="playClickSE(); changeScreen('screen-main')">もどる</button>
     </div>
 
+    <!-- 3.5 自習：カスタムタイマー時間設定画面 -->
     <div id="screen-custom-timer-set" class="screen">
         <h2>タイマー時間をセット</h2>
         <div class="spinner-container">
@@ -734,9 +730,11 @@
         <button class="secondary" onclick="playClickSE(); changeScreen('screen-self-select')">もどる</button>
     </div>
 
+    <!-- 4. タイマー作動全画面 -->
     <div id="screen-timer" class="screen">
         <div id="alarm-banner" class="alarm-overlay">おつかれさま！時間になりました</div>
         
+        <!-- カウントダウン演出レイヤー -->
         <div id="countdown-display" class="countdown-overlay">3</div>
 
         <div id="timer-box" class="timer-container-box">
@@ -745,12 +743,14 @@
             <div id="timer-text" class="timer-display">00:00:00</div>
         </div>
         
+        <!-- 操作部コンテナ -->
         <div id="timer-controls-container" class="btn-container" style="flex-direction: row; justify-content: center; z-index: 10;">
             <button id="btn-pause" onclick="playClickSE(); togglePause()">一時停止</button>
             <button id="btn-stop" class="secondary" style="margin-top:0;" onclick="playClickSE(); stopTimer()">終了する</button>
         </div>
     </div>
 
+    <!-- 5. ショップ画面 -->
     <div id="screen-shop" class="screen">
         <h2>すたでぃショップ</h2>
         <div class="shop-layout">
@@ -837,7 +837,7 @@
         let currentTrackIndex = 0;
         let isPlaying = false;
         let repeatMode = 'all'; 
-        let currentBgmVolume = 1.0; // スライダー用の音量変数
+        let currentBgmVolume = 1.0; 
         let nextTrackTimeout = null;
         let toastTimeout = null; 
 
@@ -880,7 +880,6 @@
             };
         };
 
-        // 🎵 スライダーでBGM音量を変更する関数
         function adjustBGMVolume(val) {
             currentBgmVolume = parseFloat(val);
             if (bgmPlayer && !bgmPlayer.paused) {
@@ -1195,7 +1194,6 @@
             }, 6000);
         }
 
-        // 🎵 ミュージックプレイヤーコントロール
         function togglePlayerPanel() {
             const panel = document.getElementById('player-panel');
             panel.style.display = (panel.style.display === 'block') ? 'none' : 'block';
@@ -1216,7 +1214,7 @@
         function loadTrack(index) {
             currentTrackIndex = index;
             bgmPlayer.src = tracks[index].file;
-            bgmPlayer.volume = currentBgmVolume; // 現在設定中のスライダー音量を適用
+            bgmPlayer.volume = currentBgmVolume; 
             document.getElementById('current-track-title').innerText = tracks[index].title;
             renderPlaylist();
         }
@@ -1283,18 +1281,15 @@
             }
         }
 
-        // 🔁 リピートモードの切替（マークのCSS制御）
+        // リピートモードの切替
         function toggleRepeatMode() {
             const btn = document.getElementById('btn-repeat');
             if (repeatMode === 'all') {
                 repeatMode = 'one';
-                btn.innerHTML = '🔂<span class="repeat-badge">1</span>';
-                btn.classList.add('active', 'one');
+                btn.innerText = '[LOOP ONE]';
             } else {
                 repeatMode = 'all';
-                btn.innerHTML = '🔁<span class="repeat-badge">1</span>';
-                btn.classList.remove('one');
-                btn.classList.add('active');
+                btn.innerText = '[LOOP ALL]';
             }
         }
 
