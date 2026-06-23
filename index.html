@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ふんわり勉強タイマー & ミュージックプレイヤー</title>
     
-    <!-- Safari ホーム画面追加時のアイコン設定 -->
     <link rel="apple-touch-icon" href="IMG_1973.PNG">
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -149,7 +148,7 @@
         .playlist {
             border-top: 1px dashed var(--sub-cream);
             padding-top: 10px;
-            max-height: 140px; /* 曲が増えたため、少しスクロール範囲を広げました */
+            max-height: 140px;
             overflow-y: auto;
         }
         .playlist-title {
@@ -161,6 +160,36 @@
         }
         .track-item:hover { background-color: var(--bg-color); }
         .track-item.current { background-color: var(--sub-cream); font-weight: 500; }
+
+        /* 🎵 曲名アナウンス用トースト（画面中央上部） */
+        .music-toast {
+            position: absolute;
+            top: 90px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-20px);
+            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid var(--main-pink);
+            padding: 10px 24px;
+            border-radius: 20px;
+            box-shadow: 0 8px 20px rgba(109, 89, 82, 0.1);
+            z-index: 150;
+            font-size: 0.95rem;
+            font-weight: 500;
+            text-align: center;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.8s ease, transform 0.8s ease; /* スーッと消える演出 */
+        }
+        .music-toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+        .music-toast-sub {
+            font-size: 0.7rem;
+            color: #a38f87;
+            margin-bottom: 2px;
+            letter-spacing: 0.05em;
+        }
 
         /* 画面共通スタイル */
         .screen {
@@ -512,32 +541,33 @@
             .music-widget { top: 15px; right: 15px; }
             .player-panel { width: 250px; }
             .countdown-overlay { font-size: 5rem; }
+            .music-toast { top: 75px; font-size: 0.85rem; padding: 8px 18px; }
         }
     </style>
 </head>
 <body>
 
-    <!-- 共通所持SP表示カウント -->
     <div class="global-sp-counter">所持: <span id="global-sp-display">0</span> SP</div>
 
-    <!-- オーディオ要素 -->
+    <div id="music-toast" class="music-toast">
+        <div class="music-toast-sub">NOW PLAYING</div>
+        <div id="music-toast-title">曲名</div>
+    </div>
+
     <audio id="bgm-player"></audio>
     <audio id="shop-player" src="shop.mp3" loop></audio>
     <audio id="alarm-player" src="huurin.mp3"></audio>
     
-    <!-- 効果音用プレイヤー -->
     <audio id="se-player"></audio>
     <audio id="avatar-se-player" src="abata.mp3"></audio>
-    <audio id="click-se-player" src="click.mp3"></audio> <!-- ボタンクリック音用 -->
+    <audio id="click-se-player" src="click.mp3"></audio>
 
-    <!-- ミュージックウィジェット -->
     <div class="music-widget">
         <div id="bgm-btn" class="bgm-trigger" onclick="playClickSE(); togglePlayerPanel()">
             <span id="bgm-icon">BGM</span>
             <span id="bgm-status-text">Menu</span>
         </div>
         
-        <!-- プレイヤー本体パネル -->
         <div id="player-panel" class="player-panel">
             <div class="track-info">
                 <div id="current-track-title" class="track-title">選択されていません</div>
@@ -557,7 +587,6 @@
         </div>
     </div>
 
-    <!-- 1. メインメニュー画面 -->
     <div id="screen-main" class="screen active">
         <h1>Study Room</h1>
         <p>今日も自分のペースで、心地よく。</p>
@@ -570,7 +599,6 @@
         </div>
     </div>
 
-    <!-- 1.5 おでかけ先選択画面 -->
     <div id="screen-go-out" class="screen">
         <h2>どこにおでかけしますか？</h2>
         <div class="btn-container">
@@ -583,7 +611,6 @@
         <button class="secondary" onclick="playClickSE(); changeScreen('screen-main')">もどる</button>
     </div>
 
-    <!-- 2. 授業記録：時間選択画面 -->
     <div id="screen-class-select" class="screen">
         <h2>授業時間をえらぶ</h2>
         <div class="grid-buttons">
@@ -595,7 +622,6 @@
         <button class="secondary" onclick="playClickSE(); changeScreen('screen-main')">もどる</button>
     </div>
 
-    <!-- 3. 自習：モード選択画面 -->
     <div id="screen-self-select" class="screen">
         <h2>自習スタイルをえらぶ</h2>
         <div class="btn-container">
@@ -606,7 +632,6 @@
         <button class="secondary" onclick="playClickSE(); changeScreen('screen-main')">もどる</button>
     </div>
 
-    <!-- 3.5 自習：カスタムタイマー時間設定画面 -->
     <div id="screen-custom-timer-set" class="screen">
         <h2>タイマー時間をセット</h2>
         <div class="spinner-container">
@@ -621,11 +646,9 @@
         <button class="secondary" onclick="playClickSE(); changeScreen('screen-self-select')">もどる</button>
     </div>
 
-    <!-- 4. タイマー作動全画面 -->
     <div id="screen-timer" class="screen">
         <div id="alarm-banner" class="alarm-overlay">おつかれさま！時間になりました</div>
         
-        <!-- カウントダウン演出レイヤー -->
         <div id="countdown-display" class="countdown-overlay">3</div>
 
         <div id="timer-box" class="timer-container-box">
@@ -634,18 +657,15 @@
             <div id="timer-text" class="timer-display">00:00:00</div>
         </div>
         
-        <!-- 操作部コンテナ（カウントダウン中は隠す） -->
         <div id="timer-controls-container" class="btn-container" style="flex-direction: row; justify-content: center; z-index: 10;">
             <button id="btn-pause" onclick="playClickSE(); togglePause()">一時停止</button>
             <button id="btn-stop" class="secondary" style="margin-top:0;" onclick="playClickSE(); stopTimer()">終了する</button>
         </div>
     </div>
 
-    <!-- 5. ショップ画面 -->
     <div id="screen-shop" class="screen">
         <h2>すたでぃショップ</h2>
         <div class="shop-layout">
-            <!-- アバターエリア（クリック音なし、専用SEのみ） -->
             <div class="avatar-area" onclick="tapAvatar()">
                 <div id="avatar-wrapper" class="avatar-body-wrapper">
                     <div id="avatar-character" class="avatar-character">
@@ -661,7 +681,6 @@
                 </div>
             </div>
             
-            <!-- 商品の棚（クリック音なし、専用演出のみ） -->
             <div class="shop-shelves">
                 <div class="shelf-title">のみもの</div>
                 <div id="shop-drinks-list" class="items-grid"></div>
@@ -669,7 +688,6 @@
                 <div class="shelf-title">たべもの</div>
                 <div id="shop-foods-list" class="items-grid"></div>
                 
-                <!-- ごほうびをもらう（隠しコマンドエリア） -->
                 <div class="shelf-title">ごほうびをもらう</div>
                 <div class="secret-command-area">
                     <div class="secret-input-row">
@@ -679,13 +697,12 @@
                 </div>
             </div>
         </div>
-        <!-- ショップを抜けるボタンにはクリック音をつける -->
         <button class="secondary" onclick="playClickSE(); closeShopScreen()">メインにもどる</button>
     </div>
 
     <script>
         let timerInterval = null;
-        let countdownInterval = null; // カウントダウン用
+        let countdownInterval = null; 
         let totalSeconds = 0;
         let elapsedSecondsInSession = 0; 
         let isPaused = false;
@@ -717,7 +734,6 @@
             ]
         };
 
-        // 🎵 トラックリストにmusic3〜music10を追加しました
         const tracks = [
             { id: 0, title: "三葉のテーマ", file: "music1.mp3" },
             { id: 1, title: "夢灯籠", file: "music2.mp3" },
@@ -734,8 +750,8 @@
         let isPlaying = false;
         let repeatMode = 'all'; 
         let nextTrackTimeout = null;
+        let toastTimeout = null; // 曲名表示消去用
 
-        // アバター制御用のタイムアウト管理用変数を宣言
         let avatarTimeout = null;
         let avatarTapTimeout = null;
 
@@ -755,15 +771,21 @@
             buildShopMenu();
             loadTrack(currentTrackIndex);
             
+            // 🔄 曲が終わったときの挙動
             bgmPlayer.onended = function() {
                 if (repeatMode === 'one') {
-                    bgmPlayer.play();
+                    bgmPlayer.play().then(() => {
+                        showMusicToast(tracks[currentTrackIndex].title); // 単曲リピート時も表示
+                    });
                 } else {
                     clearTimeout(nextTrackTimeout);
-                    document.getElementById('current-track-title').innerText = "間隔をあけています (3秒)...";
+                    // プレイヤーのタイトルだけを一時変更
+                    document.getElementById('current-track-title').innerText = "次の曲へ (1秒)...";
+                    
+                    // ⏱️ 曲の間を1秒あけて次を再生
                     nextTrackTimeout = setTimeout(() => {
                         nextTrack();
-                    }, 3000);
+                    }, 1000);
                 }
             };
 
@@ -772,14 +794,28 @@
             };
         };
 
-        // ショップ画面以外用の共通クリックSE再生関数
+        // 🎵 曲名が中央にふわっと出てきて3秒後にスーッと消える関数
+        function showMusicToast(title) {
+            const toast = document.getElementById('music-toast');
+            const toastTitle = document.getElementById('music-toast-title');
+            
+            clearTimeout(toastTimeout);
+            
+            toastTitle.innerText = title;
+            toast.classList.add('show'); // 表示（ふわっと浮き上がる）
+
+            // 3秒経ったら非表示クラスを外す（CSS transitionによりスーッと消える）
+            toastTimeout = setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
         function playClickSE() {
             clickSePlayer.currentTime = 0;
             clickSePlayer.volume = 0.5;
             clickSePlayer.play().catch(()=>{});
         }
 
-        // おでかけ用 確認ログ表示＆遷移関数
         function confirmAndNavigate(placeName, url) {
             const result = confirm(`${placeName}に移動しますか？`);
             if (result) {
@@ -927,7 +963,7 @@
                 "カフェの雰囲気、すごく落ち着くねぇ",
                 "応援してるよ！ひと息ついたらまた始めよう"
             ];
-            const randomLine = lines[Math.floor(Math.random() * lines.length)];
+            const randomLine = lines[lines.length * Math.random() | 0];
             speechEl.innerText = randomLine;
 
             avatarTapTimeout = setTimeout(() => {
@@ -1040,7 +1076,7 @@
                     if (!isInfiniteSP) currentSP += 1000;
                     updateSPDisplay();
                     charEl.classList.add('happy');
-                    speechEl.innerText = "本当にお疲れ様！努力の成果だね。1000SPを受け取って！";
+                    speechEl.innerText = "本当にお疲れ様！努力 of 成果だね。1000SPを受け取って！";
                 }
             }
             else if (code === "動作確認") {
@@ -1097,7 +1133,9 @@
             clearTimeout(nextTrackTimeout);
             loadTrack(index);
             if (isPlaying) {
-                bgmPlayer.play().catch(()=>{});
+                bgmPlayer.play().then(() => {
+                    showMusicToast(tracks[index].title); // 手動切り替え時も通知を表示
+                }).catch(()=>{});
             } else {
                 togglePlayPause();
             }
@@ -1116,6 +1154,7 @@
                     btn.innerText = 'PAUSE';
                     triggerBtn.classList.add('playing');
                     icon.innerText = 'BGM ON';
+                    showMusicToast(tracks[currentTrackIndex].title); // 再生開始時に表示
                 }).catch(err => {
                     alert('音楽ファイルが読み込めないか見つかりません。');
                 });
@@ -1133,7 +1172,11 @@
             let nextIndex = currentTrackIndex + 1;
             if (nextIndex >= tracks.length) nextIndex = 0;
             loadTrack(nextIndex);
-            if (isPlaying) bgmPlayer.play().catch(()=>{});
+            if (isPlaying) {
+                bgmPlayer.play().then(() => {
+                    showMusicToast(tracks[nextIndex].title); // 自動・手動送り時通知
+                }).catch(()=>{});
+            }
         }
 
         function prevTrack() {
@@ -1141,7 +1184,11 @@
             let prevIndex = currentTrackIndex - 1;
             if (prevIndex < 0) prevIndex = tracks.length - 1;
             loadTrack(prevIndex);
-            if (isPlaying) bgmPlayer.play().catch(()=>{});
+            if (isPlaying) {
+                bgmPlayer.play().then(() => {
+                    showMusicToast(tracks[prevIndex].title);
+                }).catch(()=>{});
+            }
         }
 
         function toggleRepeatMode() {
@@ -1222,13 +1269,12 @@
             document.getElementById('timer-text').innerText = formatTime(totalSeconds);
         }
 
-        // ⏱️ カウントダウンを挟むための準備関数
+        // ⏱️ タイマースタート準備
         function preStartTimer(mode, arg = null) {
             currentMode = mode;
             isPaused = false;
             elapsedSecondsInSession = 0;
 
-            // 各種タイマーの初期化設定
             if (mode === 'class') {
                 totalSeconds = arg * 60;
                 document.getElementById('timer-status').innerText = '授業記録';
@@ -1251,18 +1297,16 @@
                 document.getElementById('pomo-cycle').style.display = 'none';
             }
 
-            // タイマー画面に切り替え、数字表記をセット
             updateDisplay();
             changeScreen('screen-timer');
 
-            // カウントダウン中のUI制御
             const countdownEl = document.getElementById('countdown-display');
             const timerBox = document.getElementById('timer-box');
             const controlsBox = document.getElementById('timer-controls-container');
 
-            timerBox.style.display = 'none';       // タイマー本体を隠す
-            controlsBox.style.display = 'none';    // 操作パネルを一時的に隠す
-            countdownEl.style.display = 'block';   // カウントダウン表示を出す
+            timerBox.style.display = 'none';       
+            controlsBox.style.display = 'none';    
+            countdownEl.style.display = 'block';   
 
             let count = 3;
             countdownEl.innerText = count;
@@ -1277,19 +1321,15 @@
                 } else if (count === 0) {
                     countdownEl.innerText = "START!";
                 } else {
-                    // カウントダウン終了時の処理
                     clearInterval(countdownInterval);
                     countdownEl.style.display = 'none';
                     timerBox.style.display = 'flex';
                     controlsBox.style.display = 'flex';
-
-                    // 実際の計測スタート
                     startActualTimer();
                 }
             }, 1000);
         }
 
-        // 実際のタイマー刻み処理
         function startActualTimer() {
             if (currentMode.startsWith('pomodoro')) {
                 runPomodoroTimer();
