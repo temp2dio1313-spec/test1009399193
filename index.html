@@ -965,6 +965,13 @@
             sePlayer.onended = function() {
                 fadeAudioVolumeOnly(shopPlayer, 0.05, 1.0, 300);
             };
+
+            // アラーム音（風鈴）終了時に、BGMを元の音量に戻す
+            alarmPlayer.onended = function() {
+                if (isPlaying) {
+                    fadeAudioVolumeOnly(bgmPlayer, 0.05, currentBgmVolume, 500);
+                }
+            };
         };
 
         function adjustBGMVolume(val) {
@@ -1007,7 +1014,7 @@
                 displayEl.innerText = "無制限";
             } else {
                 displayEl.innerText = Math.floor(currentSP);
-                localStorage.setItem('study_sp', currentSP.toString()); // SPは日付に依存せず常にlocalStorageに同期保存
+                localStorage.setItem('study_sp', currentSP.toString()); 
             }
         }
 
@@ -1221,7 +1228,6 @@
             clearTimeout(avatarTapTimeout);
             resetAvatarState();
 
-            // 1日1回制限用のストレージ処理
             const todayStr = getTodayString();
             let commandHistory = JSON.parse(localStorage.getItem('study_command_history_daily') || '{}');
 
@@ -1368,10 +1374,18 @@
             }
         }
 
-        function playChimeSound() {
+        // BGMを極小にして風鈴（huurin.mp3）を鳴らす共通管理関数
+        function playAlarmWithBgmFade() {
+            if (isPlaying) {
+                bgmPlayer.volume = 0.05; // 鳴り始めにBGMを極小化
+            }
             alarmPlayer.currentTime = 0;
             alarmPlayer.volume = 0.8; 
-            alarmPlayer.play().catch(e => console.log("再生制限回避"));
+            alarmPlayer.play().catch(e => {
+                console.log("再生制限回避用セーフティ");
+                // 万が一アラーム再生に失敗した場合はBGMを元の音量に戻す
+                if (isPlaying) bgmPlayer.volume = currentBgmVolume;
+            });
         }
 
         function getTodayString() {
@@ -1389,7 +1403,6 @@
             document.getElementById('today-record-time').innerText = formatMinutesToHoursAndMinutes(todayMinutes);
         }
 
-        // 分を「~時間~分」または「~分」の読みやすい形式に変換する補助関数
         function formatMinutesToHoursAndMinutes(totalMinutes) {
             if (totalMinutes === 0) return "0分";
             const hours = Math.floor(totalMinutes / 60);
@@ -1411,7 +1424,7 @@
             localStorage.setItem('study_today_minutes', currentTotalMinutes + minutesEarned);
             displayTodayRecord();
 
-            // カレンダー履歴保存用 (日付文字列キーに加算して蓄積)
+            // カレンダー履歴保存用
             const todayStr = getTodayString();
             const pastMinutes = parseFloat(localStorage.getItem(`study_log_${todayStr}`) || '0');
             localStorage.setItem(`study_log_${todayStr}`, (pastMinutes + minutesEarned).toString());
@@ -1425,7 +1438,7 @@
 
         /* --- カレンダー生成・管理ロジック --- */
         function openCalendarScreen() {
-            calendarCurrentDate = new Date(); // 今日をベースに初期表示
+            calendarCurrentDate = new Date(); 
             renderCalendar();
             changeScreen('screen-calendar');
         }
@@ -1439,28 +1452,24 @@
             const year = calendarCurrentDate.getFullYear();
             const month = calendarCurrentDate.getMonth();
             
-            // ヘッダータイトル更新
             document.getElementById('calendar-month-title').innerText = `${year} / ${String(month + 1).padStart(2, '0')}`;
             
             const gridContainer = document.getElementById('calendar-days-grid');
             gridContainer.innerHTML = '';
             document.getElementById('calendar-day-detail').innerText = "日付をタッチすると記録が表示されます";
 
-            // 月の初日の曜日と、月の総日数を取得
             const firstDayIndex = new Date(year, month, 1).getDay();
             const totalDays = new Date(year, month + 1, 0).getDate();
             
             const todayObj = new Date();
             const todayStr = `${todayObj.getFullYear()}-${String(todayObj.getMonth()+1).padStart(2,'0')}-${String(todayObj.getDate()).padStart(2,'0')}`;
 
-            // 先頭の空欄埋め
             for (let i = 0; i < firstDayIndex; i++) {
                 const emptyCell = document.createElement('div');
                 emptyCell.className = 'calendar-day empty';
                 gridContainer.appendChild(emptyCell);
             }
 
-            // 日付セルの生成
             for (let day = 1; day <= totalDays; day++) {
                 const dayCell = document.createElement('div');
                 dayCell.className = 'calendar-day';
@@ -1468,18 +1477,15 @@
 
                 const currentKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                 
-                // 記録が存在するか判定
                 const minutesRecord = parseFloat(localStorage.getItem(`study_log_${currentKey}`) || '0');
                 if (minutesRecord > 0) {
                     dayCell.classList.add('has-record');
                 }
                 
-                // 今日かどうか
                 if (currentKey === todayStr) {
                     dayCell.classList.add('today');
                 }
 
-                // タッチ・クリックイベント
                 dayCell.onclick = () => {
                     playClickSE();
                     showDayDetail(currentKey, year, month + 1, day);
@@ -1627,7 +1633,7 @@
                         clearInterval(timerInterval);
                         
                         if (currentMode === 'pomodoro-work') {
-                            playChimeSound(); 
+                            playAlarmWithBgmFade(); // 集中終了時の風鈴 & 音量極小化
                             saveStudyTimeAndSP(elapsedSecondsInSession);
                             elapsedSecondsInSession = 0;
 
@@ -1645,10 +1651,11 @@
                                 currentMode = 'pomodoro-rest';
                                 totalSeconds = 5 * 60; 
                                 document.getElementById('timer-status').innerText = 'ポモドーロ：休憩タイム';
-                                updateDisplay(); runPomodoroTimer();
+                                updateDisplay(); 
+                                runPomodoroTimer();
                             }, 4000);
                         } else {
-                            playChimeSound(); 
+                            playAlarmWithBgmFade(); // 休憩終了時の風鈴 & 音量極小化
                             document.body.classList.remove('rest-mode-bg'); 
                             
                             pomodoroCycle++;
@@ -1656,7 +1663,8 @@
                             totalSeconds = 25 * 60;
                             document.getElementById('timer-status').innerText = 'ポモドーロ：集中タイム';
                             document.getElementById('pomo-cycle').querySelector('span').innerText = pomodoroCycle;
-                            updateDisplay(); runPomodoroTimer();
+                            updateDisplay(); 
+                            runPomodoroTimer();
                         }
                     }
                 }
@@ -1664,7 +1672,7 @@
         }
 
         function triggerAlarmEffect() {
-            playChimeSound(); 
+            playAlarmWithBgmFade(); // 通常タイマー終了時の風鈴 & 音量極小化
             document.getElementById('alarm-banner').innerText = 'おつかれさま！時間になりました';
             document.body.classList.add('cute-alarm-bg');
             document.getElementById('timer-box').classList.add('cute-poyo');
