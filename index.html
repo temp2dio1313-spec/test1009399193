@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ふんわり勉強タイマー & ミュージックプレイヤー</title>
     
-    <!-- Safari ホーム画面追加時のアイコン設定 -->
     <link rel="apple-touch-icon" href="IMG_1973.PNG">
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -328,6 +327,85 @@
         .cute-alarm-bg { background-color: #fff0f3 !important; }
         .alarm-overlay { display: none; position: absolute; top: 12%; background: #ffb5a7; color: white; padding: 12px 28px; border-radius: 25px; font-weight: bold; font-size: 1.05rem; box-shadow: 0 8px 20px rgba(251, 181, 167, 0.4); letter-spacing: 0.05em; }
 
+        /* カレンダー画面スタイル */
+        .calendar-container {
+            width: 100%;
+            max-width: 360px;
+            background: #ffffff;
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 10px 25px rgba(109, 89, 82, 0.05);
+            border: 1px dashed var(--main-pink);
+        }
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .calendar-header h3 {
+            font-family: var(--font-number);
+            font-size: 1.2rem;
+            font-weight: 500;
+        }
+        .calendar-nav-btn {
+            background: none; border: none; box-shadow: none; padding: 5px;
+            font-size: 0.85rem; font-weight: bold; cursor: pointer; color: var(--text-color);
+        }
+        .calendar-nav-btn:hover { background: none; color: var(--main-pink); box-shadow: none; }
+        
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+            text-align: center;
+        }
+        .weekday-label {
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: #a38f87;
+            padding-bottom: 5px;
+        }
+        .calendar-day {
+            font-family: var(--font-number);
+            font-size: 0.95rem;
+            padding: 8px 0;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background 0.2s;
+            position: relative;
+        }
+        .calendar-day:hover:not(.empty) {
+            background-color: var(--sub-cream);
+        }
+        .calendar-day.has-record::after {
+            content: '';
+            position: absolute;
+            bottom: 3px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 4px;
+            height: 4px;
+            background-color: #e29578;
+            border-radius: 50%;
+        }
+        .calendar-day.today {
+            border: 1px solid var(--main-pink);
+            font-weight: bold;
+        }
+        .calendar-day.empty {
+            cursor: default;
+        }
+        .day-detail-box {
+            margin-top: 15px;
+            padding: 10px;
+            background: var(--bg-color);
+            border-radius: 10px;
+            font-size: 0.85rem;
+            text-align: center;
+            min-height: 38px;
+        }
+
         /* ショップ専用背景・レイアウト */
         #screen-shop {
             background-image: url('cafe.png');
@@ -605,44 +683,38 @@
             .player-panel { width: 250px; }
             .countdown-overlay { font-size: 5rem; }
             .music-toast { top: 75px; font-size: 0.85rem; padding: 8px 18px; }
+            .calendar-container { max-width: 300px; padding: 15px; }
         }
     </style>
 </head>
 <body>
 
-    <!-- 共通所持SP表示カウント -->
     <div class="global-sp-counter">所持: <span id="global-sp-display">0</span> SP</div>
 
-    <!-- 曲名通知用のポップアップトースト -->
     <div id="music-toast" class="music-toast">
         <div class="music-toast-sub">NOW PLAYING</div>
         <div id="music-toast-title">曲名</div>
     </div>
 
-    <!-- オーディオ要素 -->
     <audio id="bgm-player"></audio>
     <audio id="shop-player" src="shop.mp3" loop></audio>
     <audio id="alarm-player" src="huurin.mp3"></audio>
     
-    <!-- 効果音用プレイヤー -->
     <audio id="se-player"></audio>
     <audio id="avatar-se-player" src="abata.mp3"></audio>
     <audio id="click-se-player" src="click.mp3"></audio>
 
-    <!-- ミュージックウィジェット -->
     <div class="music-widget">
         <div id="bgm-btn" class="bgm-trigger" onclick="playClickSE(); togglePlayerPanel()">
             <span id="bgm-icon">BGM</span>
             <span id="bgm-status-text">Menu</span>
         </div>
         
-        <!-- プレイヤー本体パネル -->
         <div id="player-panel" class="player-panel">
             <div class="track-info">
                 <div id="current-track-title" class="track-title">選択されていません</div>
             </div>
             
-            <!-- 音量コントロールバー -->
             <div class="volume-container">
                 <span class="volume-label">[ VOL - ]</span>
                 <input type="range" id="volume-slider" class="volume-slider" min="0" max="1" step="0.05" value="1" oninput="adjustBGMVolume(this.value)">
@@ -650,7 +722,6 @@
             </div>
             
             <div class="player-controls">
-                <!-- コンパクトなリピートテキストボタン -->
                 <button class="control-btn repeat-btn active" onclick="playClickSE(); toggleRepeatMode()" id="btn-repeat" title="リピート切替">
                     [LOOP ALL]
                 </button>
@@ -666,7 +737,6 @@
         </div>
     </div>
 
-    <!-- 1. メインメニュー画面 -->
     <div id="screen-main" class="screen active">
         <h1>Study Room</h1>
         <p>今日も自分のペースで、心地よく。</p>
@@ -675,11 +745,11 @@
             <button onclick="playClickSE(); changeScreen('screen-class-select')">授業記録</button>
             <button onclick="playClickSE(); changeScreen('screen-self-select')">自習</button>
             <button onclick="playClickSE(); changeScreen('screen-go-out')">おでかけ</button>
+            <button onclick="playClickSE(); openCalendarScreen()" style="border-color: #ffedd8; background-color: #fffdfa;">カレンダー</button>
             <button onclick="playClickSE(); openShopScreen()" style="border-color: #bdedf2; background-color: #f4fcfd;">ショップ</button>
         </div>
     </div>
 
-    <!-- 1.5 おでかけ先選択画面 -->
     <div id="screen-go-out" class="screen">
         <h2>どこにおでかけしますか？</h2>
         <div class="btn-container">
@@ -692,7 +762,6 @@
         <button class="secondary" onclick="playClickSE(); changeScreen('screen-main')">もどる</button>
     </div>
 
-    <!-- 2. 授業記録：時間選択画面 -->
     <div id="screen-class-select" class="screen">
         <h2>授業時間をえらぶ</h2>
         <div class="grid-buttons">
@@ -704,7 +773,6 @@
         <button class="secondary" onclick="playClickSE(); changeScreen('screen-main')">もどる</button>
     </div>
 
-    <!-- 3. 自習：モード選択画面 -->
     <div id="screen-self-select" class="screen">
         <h2>自習スタイルをえらぶ</h2>
         <div class="btn-container">
@@ -715,7 +783,6 @@
         <button class="secondary" onclick="playClickSE(); changeScreen('screen-main')">もどる</button>
     </div>
 
-    <!-- 3.5 自習：カスタムタイマー時間設定画面 -->
     <div id="screen-custom-timer-set" class="screen">
         <h2>タイマー時間をセット</h2>
         <div class="spinner-container">
@@ -730,11 +797,9 @@
         <button class="secondary" onclick="playClickSE(); changeScreen('screen-self-select')">もどる</button>
     </div>
 
-    <!-- 4. タイマー作動全画面 -->
     <div id="screen-timer" class="screen">
         <div id="alarm-banner" class="alarm-overlay">おつかれさま！時間になりました</div>
         
-        <!-- カウントダウン演出レイヤー -->
         <div id="countdown-display" class="countdown-overlay">3</div>
 
         <div id="timer-box" class="timer-container-box">
@@ -743,14 +808,35 @@
             <div id="timer-text" class="timer-display">00:00:00</div>
         </div>
         
-        <!-- 操作部コンテナ -->
         <div id="timer-controls-container" class="btn-container" style="flex-direction: row; justify-content: center; z-index: 10;">
             <button id="btn-pause" onclick="playClickSE(); togglePause()">一時停止</button>
             <button id="btn-stop" class="secondary" style="margin-top:0;" onclick="playClickSE(); stopTimer()">終了する</button>
         </div>
     </div>
 
-    <!-- 5. ショップ画面 -->
+    <div id="screen-calendar" class="screen">
+        <h2>勉強のきろく</h2>
+        <div class="calendar-container">
+            <div class="calendar-header">
+                <button class="calendar-nav-btn" onclick="playClickSE(); moveMonth(-1)">[&lt; PREV]</button>
+                <h3 id="calendar-month-title">2026 / 06</h3>
+                <button class="calendar-nav-btn" onclick="playClickSE(); moveMonth(1)">[NEXT &gt;]</button>
+            </div>
+            <div class="calendar-grid" id="calendar-weeks-labels">
+                <div class="weekday-label">日</div>
+                <div class="weekday-label">月</div>
+                <div class="weekday-label">火</div>
+                <div class="weekday-label">水</div>
+                <div class="weekday-label">木</div>
+                <div class="weekday-label">金</div>
+                <div class="weekday-label">土</div>
+            </div>
+            <div class="calendar-grid" id="calendar-days-grid"></div>
+            <div class="day-detail-box" id="calendar-day-detail">日付をタッチすると記録が表示されます</div>
+        </div>
+        <button class="secondary" onclick="playClickSE(); changeScreen('screen-main')">メインにもどる</button>
+    </div>
+
     <div id="screen-shop" class="screen">
         <h2>すたでぃショップ</h2>
         <div class="shop-layout">
@@ -801,7 +887,8 @@
         let currentSP = parseFloat(localStorage.getItem('study_sp') || '0');
         let isInfiniteSP = false; 
 
-        let usedCommands = JSON.parse(localStorage.getItem('study_used_commands') || '{"nenatta":false, "eraiko":false, "ganbatta":false}');
+        // カレンダー表示用データ
+        let calendarCurrentDate = new Date();
 
         const shopItems = {
             drinks: [
@@ -920,7 +1007,7 @@
                 displayEl.innerText = "無制限";
             } else {
                 displayEl.innerText = Math.floor(currentSP);
-                localStorage.setItem('study_sp', currentSP.toString());
+                localStorage.setItem('study_sp', currentSP.toString()); // SPは日付に依存せず常にlocalStorageに同期保存
             }
         }
 
@@ -1134,42 +1221,31 @@
             clearTimeout(avatarTapTimeout);
             resetAvatarState();
 
-            if (code === "ねなかった") {
-                if (usedCommands.nenatta) {
-                    alert("このコマンドはすでに1回使われています。");
-                } else {
-                    usedCommands.nenatta = true;
-                    localStorage.setItem('study_used_commands', JSON.stringify(usedCommands));
-                    if (!isInfiniteSP) currentSP += 1000;
-                    updateSPDisplay();
-                    charEl.classList.add('happy');
+            // 1日1回制限用のストレージ処理
+            const todayStr = getTodayString();
+            let commandHistory = JSON.parse(localStorage.getItem('study_command_history_daily') || '{}');
+
+            if (code === "ねなかった" || code === "えらいこ" || code === "がんばった") {
+                if (commandHistory[code] === todayStr) {
+                    alert("このコトバは今日はもう使われています。また明日使ってね！");
+                    return;
+                }
+
+                commandHistory[code] = todayStr;
+                localStorage.setItem('study_command_history_daily', JSON.stringify(commandHistory));
+
+                if (!isInfiniteSP) currentSP += 1000;
+                updateSPDisplay();
+                charEl.classList.add('happy');
+
+                if (code === "ねなかった") {
                     speechEl.innerText = "誘惑に負けずに起きてて本当にえらい！1000SPをあげるね！";
-                }
-            } 
-            else if (code === "えらいこ") {
-                if (usedCommands.eraiko) {
-                    alert("このコマンドはすでに1回使われています。");
-                } else {
-                    usedCommands.eraiko = true;
-                    localStorage.setItem('study_used_commands', JSON.stringify(usedCommands));
-                    if (!isInfiniteSP) currentSP += 1000;
-                    updateSPDisplay();
-                    charEl.classList.add('happy');
+                } else if (code === "えらいこ") {
                     speechEl.innerText = "あなたは最高のえらいこ！いつも見てるよ。1000SPをどうぞ！";
-                }
-            } 
-            else if (code === "がんばった") {
-                if (usedCommands.ganbatta) {
-                    alert("このコマンドはすでに1回使われています。");
-                } else {
-                    usedCommands.ganbatta = true;
-                    localStorage.setItem('study_used_commands', JSON.stringify(usedCommands));
-                    if (!isInfiniteSP) currentSP += 1000;
-                    updateSPDisplay();
-                    charEl.classList.add('happy');
+                } else if (code === "がんばった") {
                     speechEl.innerText = "本当にお疲れ様！努力 of 成果だね。1000SPを受け取って！";
                 }
-            }
+            } 
             else if (code === "動作確認") {
                 isInfiniteSP = true;
                 updateSPDisplay();
@@ -1281,7 +1357,6 @@
             }
         }
 
-        // リピートモードの切替
         function toggleRepeatMode() {
             const btn = document.getElementById('btn-repeat');
             if (repeatMode === 'all') {
@@ -1311,22 +1386,119 @@
                 localStorage.setItem('study_today_minutes', '0');
             }
             const todayMinutes = parseFloat(localStorage.getItem('study_today_minutes') || '0');
-            document.getElementById('today-record-time').innerText = todayMinutes.toFixed(1) + '分';
+            document.getElementById('today-record-time').innerText = formatMinutesToHoursAndMinutes(todayMinutes);
+        }
+
+        // 分を「~時間~分」または「~分」の読みやすい形式に変換する補助関数
+        function formatMinutesToHoursAndMinutes(totalMinutes) {
+            if (totalMinutes === 0) return "0分";
+            const hours = Math.floor(totalMinutes / 60);
+            const minutes = totalMinutes % 60;
+            
+            if (hours > 0) {
+                return `${hours}時間${minutes.toFixed(0)}分`;
+            } else {
+                return `${minutes.toFixed(1)}分`;
+            }
         }
 
         function saveStudyTimeAndSP(seconds) {
             if (seconds <= 0) return;
             const minutesEarned = seconds / 60;
             
+            // 今日の記録用
             const currentTotalMinutes = parseFloat(localStorage.getItem('study_today_minutes') || '0');
             localStorage.setItem('study_today_minutes', currentTotalMinutes + minutesEarned);
             displayTodayRecord();
+
+            // カレンダー履歴保存用 (日付文字列キーに加算して蓄積)
+            const todayStr = getTodayString();
+            const pastMinutes = parseFloat(localStorage.getItem(`study_log_${todayStr}`) || '0');
+            localStorage.setItem(`study_log_${todayStr}`, (pastMinutes + minutesEarned).toString());
 
             if (!isInfiniteSP) {
                 const pointsEarned = minutesEarned * 10;
                 currentSP += pointsEarned;
             }
             updateSPDisplay();
+        }
+
+        /* --- カレンダー生成・管理ロジック --- */
+        function openCalendarScreen() {
+            calendarCurrentDate = new Date(); // 今日をベースに初期表示
+            renderCalendar();
+            changeScreen('screen-calendar');
+        }
+
+        function moveMonth(delta) {
+            calendarCurrentDate.setMonth(calendarCurrentDate.getMonth() + delta);
+            renderCalendar();
+        }
+
+        function renderCalendar() {
+            const year = calendarCurrentDate.getFullYear();
+            const month = calendarCurrentDate.getMonth();
+            
+            // ヘッダータイトル更新
+            document.getElementById('calendar-month-title').innerText = `${year} / ${String(month + 1).padStart(2, '0')}`;
+            
+            const gridContainer = document.getElementById('calendar-days-grid');
+            gridContainer.innerHTML = '';
+            document.getElementById('calendar-day-detail').innerText = "日付をタッチすると記録が表示されます";
+
+            // 月の初日の曜日と、月の総日数を取得
+            const firstDayIndex = new Date(year, month, 1).getDay();
+            const totalDays = new Date(year, month + 1, 0).getDate();
+            
+            const todayObj = new Date();
+            const todayStr = `${todayObj.getFullYear()}-${String(todayObj.getMonth()+1).padStart(2,'0')}-${String(todayObj.getDate()).padStart(2,'0')}`;
+
+            // 先頭の空欄埋め
+            for (let i = 0; i < firstDayIndex; i++) {
+                const emptyCell = document.createElement('div');
+                emptyCell.className = 'calendar-day empty';
+                gridContainer.appendChild(emptyCell);
+            }
+
+            // 日付セルの生成
+            for (let day = 1; day <= totalDays; day++) {
+                const dayCell = document.createElement('div');
+                dayCell.className = 'calendar-day';
+                dayCell.innerText = day;
+
+                const currentKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                
+                // 記録が存在するか判定
+                const minutesRecord = parseFloat(localStorage.getItem(`study_log_${currentKey}`) || '0');
+                if (minutesRecord > 0) {
+                    dayCell.classList.add('has-record');
+                }
+                
+                // 今日かどうか
+                if (currentKey === todayStr) {
+                    dayCell.classList.add('today');
+                }
+
+                // タッチ・クリックイベント
+                dayCell.onclick = () => {
+                    playClickSE();
+                    showDayDetail(currentKey, year, month + 1, day);
+                };
+
+                gridContainer.appendChild(dayCell);
+            }
+        }
+
+        function showDayDetail(dateKey, year, month, day) {
+            const detailBox = document.getElementById('calendar-day-detail');
+            const totalMinutes = parseFloat(localStorage.getItem(`study_log_${dateKey}`) || '0');
+            
+            if (totalMinutes > 0) {
+                const timeString = formatMinutesToHoursAndMinutes(totalMinutes);
+                detailBox.innerText = `${year}年${month}月${day}日の勉強時間: ${timeString}`;
+            } else {
+                detailBox.innerText = `${year}年${month}月${day}日の勉強記録はありません`;
+            }
         }
 
         function adjustMinutes(amount) {
